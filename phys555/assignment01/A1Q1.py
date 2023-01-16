@@ -55,7 +55,6 @@ exp_var_pca = pca.explained_variance_ratio_
 # for visualizing the variance explained by each principal component.
 cum_sum_eigenvalues = np.cumsum(exp_var_pca)
 
-
 # Create the visualization plot
 plt.figure(2)
 plt.bar(range(0,len(exp_var_pca)), exp_var_pca, alpha=0.5, align='center', label='Individual explained variance')
