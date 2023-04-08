@@ -7,9 +7,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
-from PIL import Image
+from torchvision.datasets import ImageFolder
+from PIL import Image, ImageOps
 import os.path, sys
-import torch
 import tensorflow as tf
 import torchaudio
 import torchaudio.transforms as T
@@ -17,115 +17,158 @@ import librosa
 import matplotlib.pyplot as plt
 import wave
 from IPython.display import Audio
+from torchvision.io import read_image
+import torch
+import torch.nn as nn
+import torchvision.models as models
+import torch.optim as optim
+from sklearn.model_selection import train_test_split
+from efficientnet_pytorch import EfficientNet
 
-def plot_waveform(idx, waveform, sr, title="Waveform"):
-    waveform = waveform.numpy()
+from sklearn.datasets import load_digits
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+import seaborn as sns
 
-    num_channels, num_frames = waveform.shape
-    time_axis = torch.arange(0, num_frames) / sr
-
-    figure, axes = plt.subplots(num_channels, 1)
-    axes.plot(time_axis, waveform[0], linewidth=1)
-    axes.grid(True)
-    figure.suptitle(title)
-    plt.show(block=False)
-    plt.savefig(r'C:\Users\kzammit\Repos\school\phys555\project-DL\orcas_classification\wavpngs\wav-' + str(idx) + '.png')
-    plt.close()
-
-def plot_spectrogram(idx, specgram, title=None, ylabel="freq_bin"):
-    fig, axs = plt.subplots(1, 1)
-    axs.set_title(title or "Spectrogram (db)")
-    axs.set_ylabel(ylabel)
-    axs.set_xlabel("frame")
-    #axs.set_ylim(0, 100)
-    im = axs.imshow(librosa.power_to_db(specgram), origin="lower", aspect="auto")
-    fig.colorbar(im, ax=axs)
-    plt.show(block=False)
-    plt.savefig(r'C:\Users\kzammit\Repos\school\phys555\project-DL\orcas_classification\spectrograms\spec-' + str(idx) + '.png')
-    plt.close()
-
-def plot_fbank(fbank, title=None):
-    fig, axs = plt.subplots(1, 1)
-    axs.set_title(title or "Filter bank")
-    axs.imshow(fbank, aspect="auto")
-    axs.set_ylabel("frequency bin")
-    axs.set_xlabel("mel bin")
-    plt.show(block=False)
-
-def crop(path, dirs):
-    for item in dirs:
-        fullpath = os.path.join(path,item)
-        if os.path.isfile(fullpath):
-            im = Image.open(fullpath)
-            f, e = os.path.splitext(fullpath)
-            # last one does the height
-            # left top right bottom
-            imCrop = im.crop((80, 58, 475, 425)) #corrected
-            imCrop.save(f + '-crop.png', "PNG", quality=300)
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-class OrcaDataset(Dataset):
-    def __init__(self, csv_file, root_dir, transform=None):
-        """
-        Args:
-            csv_file (string): Path to the csv file with annotations.
-            root_dir (string): Directory with all the images.
-            transform (callable, optional): Optional transform to be applied
-                on a sample.
-        """
-        self.annotations_frame = pd.read_csv(csv_file)
-        self.root_dir = root_dir
+def preprocess():
+    transform = transforms.Compose([
+        transforms.ToPILImage(),
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
+        transforms.ToTensor()])
+        #transforms.Normalize(mean=[0.485],
+        #                     std=[0.229]), ])
+    return transform
+
+
+class OrcaImageDataset(Dataset):
+
+    def __init__(self, annotations_file, img_dir, transform, target_transform=None):
+        self.img_labels = pd.read_csv(annotations_file)
+        self.img_dir = img_dir
         self.transform = transform
+        self.target_transform = target_transform
 
     def __len__(self):
-        return len(self.annotations_frame)
+        return len(self.img_labels)
 
     def __getitem__(self, idx):
-        return
+        img_path = os.path.join(self.img_dir, self.img_labels.iloc[idx, 0])
+        image = read_image(img_path)
+        label = self.img_labels.iloc[idx, 1]
+        if self.transform:
+            image = self.transform(image)
+        if self.target_transform:
+            label = self.target_transform(label)
+        return image, label
 
-if __name__ == "__main__":
+annotations_file = r"C:\Users\kzammit\Documents\PHYS555\orcas_classification\annotations-edited.csv"
+img_dir = r"C:\Users\kzammit\Documents\PHYS555\orcas_classification\specs"
+transforms_eff = preprocess()
+orca_dataset = OrcaImageDataset(annotations_file, img_dir, transform=transforms_eff)
 
-    ## Crop spectrograms ##
-    #path = r"C:\Users\kzammit\Repos\school\phys555\project-DL\orcas_classification\cropped_spectrograms"
-    #dirs = os.listdir(path)
-    #crop(path, dirs)
-    ##
-    ## Create spectrograms ##
+labels = orca_dataset.img_labels
 
-    #for ii in range(593, 594):
-    #    path = r'C:\Users\kzammit\Repos\school\phys555\project-DL\orcas_classification\audio'
-    #    file = '\\' + str(ii) + '.wav'
+xtrain_data, test_data, ytrain_labels, test_labels = train_test_split(
+    orca_dataset, labels, test_size=0.2, random_state=21)
 
-    #    fullfile = path + file
+#  split a validation set from the training set
+train_data, val_data, train_labels, val_labels = train_test_split(
+    xtrain_data, ytrain_labels, test_size=0.2, random_state=22)
 
-    #    SAMPLE_SPEECH = fullfile
+print('The number of samples for training is ' + str(len(train_data)))
+print('The number of samples for validation is ' + str(len(val_data)))
+print('The number of samples for testing is ' + str(len(test_data)))
 
-    #    SPEECH_WAVEFORM, SAMPLE_RATE = torchaudio.load(SAMPLE_SPEECH)
+scaler = StandardScaler()
+#train_data_sc = scaler.fit_transform(train_data)
+#val_data_sc = scaler.transform(val_data)
+#test_data_sc = scaler.transform(test_data)
 
-    #   plot_waveform(idx=str(ii), waveform=SPEECH_WAVEFORM, sr=SAMPLE_RATE, title="Original waveform")
-    #    Audio(SPEECH_WAVEFORM.numpy(), rate=SAMPLE_RATE)
+batch_size = 1
+train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
+val_loader = DataLoader(val_data, batch_size=batch_size, shuffle=True)
+test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=True)
 
-    #   n_fft = 2000
-    #    win_length = 2000
-    #    hop_length = 200
+def train_test_model(model, train_loader, val_loader, n_epochs, optimizer):
+    criterion = nn.MSELoss()
+    optimizer = optimizer
+    model = model.train()
+    train_losses = []
+    val_losses = []
 
-        # Define transform
-    #    spectrogram = T.Spectrogram(
-    #       n_fft=n_fft,
-    #        win_length=win_length,
-     #       hop_length=hop_length,
-     #       center=True,
-     #       pad_mode="reflect",
-     #       power=2.0,
-     #   )
-     #   spec = spectrogram(SPEECH_WAVEFORM)
-     #   plot_spectrogram(idx=str(ii), specgram=spec[0], title="Orca Callies")
+    for epoch in range(n_epochs):
+        train_batch_losses = []
+        val_batch_losses = []
+        for data in train_loader:
+            img, _ = data
+            img = img.to(device)
+            img = img.reshape(-1, 28 * 28)
+            # print(img.shape)
+            output = model(img)
+            loss = criterion(output, img.data)
+            # ************************ backward *************************
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            train_batch_losses.append(loss.item())
 
-    print('test')
+        model = model.eval()
+        for data in val_loader:
+            output = model(img)
+            loss = criterion(output, img.data)
+            val_batch_losses.append(loss.item())
 
-    orca_dataset = OrcaDataset(csv_file='C:/Users/kzammit/Documents/PHYS555/orcas_classification/annotations-edited.csv',
-                                        root_dir='C:/Users/kzammit/Documents/PHYS555/orcas_classification/cropped_spectrograms')
+        train_loss = np.mean(train_batch_losses)
+        val_loss = np.mean(val_batch_losses)
+
+        train_losses.append(train_loss)
+        val_losses.append(val_loss)
+
+        # ***************************** log ***************************
+        if epoch % 10 == 0:
+            print(f"epoch [{epoch + 1}/{n_epochs}], Train loss:{train_loss: .4f} Valid:{val_loss: .4f}")
+
+    return model.eval()
 
 
+# Creating a DeepAutoencoder class
+class DeepAutoencoder(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.encoder = torch.nn.Sequential(
+            torch.nn.Linear(28 * 28, 256),
+            torch.nn.ReLU(),
+            torch.nn.Linear(256, 128),
+            torch.nn.ReLU(),
+            torch.nn.Linear(128, 64),
+            torch.nn.ReLU(),
+            torch.nn.Linear(64, 10)
+        )
 
+        self.decoder = torch.nn.Sequential(
+            torch.nn.Linear(10, 64),
+            torch.nn.ReLU(),
+            torch.nn.Linear(64, 128),
+            torch.nn.ReLU(),
+            torch.nn.Linear(128, 256),
+            torch.nn.ReLU(),
+            torch.nn.Linear(256, 28 * 28),
+            torch.nn.Sigmoid()
+        )
 
+    def forward(self, x):
+        encoded = self.encoder(x)
+        decoded = self.decoder(encoded)
+        return decoded
+
+# Instantiating the model and hyperparameters
+model = DeepAutoencoder().to(device)
+n_epochs = 100
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+model = train_test_model(model, train_loader, val_loader, n_epochs, optimizer)
+
+print('test')
