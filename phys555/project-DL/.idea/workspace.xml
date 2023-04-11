@@ -4,12 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="f11f372f-9d01-48bf-ab6a-4da852b8cfe2" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.ipynb_checkpoints/Project-DL-KZammit-take2-checkpoint.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/.ipynb_checkpoints/Project-DL-KZammit-take2-checkpoint.ipynb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/GPU-test.py" beforeDir="false" afterPath="$PROJECT_DIR$/GPU-test.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Project-DL-KZammit-take2.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/Project-DL-KZammit-take2.ipynb" afterDir="false" />
-    </list>
+    <list default="true" id="f11f372f-9d01-48bf-ab6a-4da852b8cfe2" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
